@@ -1,0 +1,30 @@
+
+    Käyttäjä pelaa peliä vuorovaikutteisesti näppäimistön avulla.
+    Peli käyttää relaatiotietokantaa, jonka pohjana on opintojaksolla käytetty lentokenttätaulu.
+	Tietokannan skeemaa saa vapaasti muuttaa ja laajentaa.
+    Pelissä on konkreettinen tavoite, ja se tuottaa hyvän pelikokemuksen.
+    Peli huomioi kestävän kehityksen näkökulman.
+    Peli on hyvien tapojen mukainen ja soveltuu myös nuorille käyttäjille (K12).
+
+
+Peli:
+Löydä timantti ja palaa aloitus kentälle.
+
+Peli alkaa randomisti valitusta lentokentästä.
+
+X määrä rahaa ja Y määrä bensaa pelin alussa
+
+ratio on 1 euro -> 2 litra bensaa
+
+Joissain lentokentissä on lootboxeja joista voi saada seuraavia:
+	hinta on X määrä rahaa tai x * 2 määrä bensaa
+
+	topaz: x määrä rahaa (vähiten)
+	emerald: x määrä rahaa (keskiverto)
+	ruby: x määrä rahaa (eniten)
+
+TAI rosvoja eli lose ur money
+
+
+Pelin alku:
+Valitaan random aloituspaikka
