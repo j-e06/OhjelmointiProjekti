@@ -2,25 +2,42 @@ import random
 from geopy import distance
 
 from db import cursor
-
+# get all airports from the database that we're going to use for the game
 def get_airports():
-    sql = """SELECT iso_country, ident, name, type, latitude_deg, longitude_deg
-FROM airport
-WHERE continent = 'EU' 
-AND type in ('small_airport')
-ORDER by RAND()
-LIMIT 30;"""
+    ch = input("Haluatko pelata Euroopassa vai maailmanlaajuisesti? (eurooppa/maailma)")
+    sql = "SELECT iso_country, ident, name, type, latitude_deg, longitude_deg FROM airport"
+    if ch == "eurooppa":
+        sql += " WHERE continent = 'EU' AND type in ('large_airport')"
+    elif ch == "maailma":
+        sql += " WHERE type in ('large_airport')"
+    else:
+        print("Virheellinen syöte.")
+        get_airports()
+
+    sql += " ORDER by RAND() LIMIT 30;"
+    #           sql = """SELECT iso_country, ident, name, type, latitude_deg, longitude_deg
+    #       FROM airport
+    #       WHERE continent = 'EU'
+    #       AND type in ('large_airport')
+    #       ORDER by RAND()
+    #       LIMIT 30;"""
+    print(sql)
     global cursor
     cursor.execute(sql)
     result = cursor.fetchall()
     return result
-
+# get the information of an airport based on its ICAO code
 def get_airport_info(icao):
     sql = f"SELECT iso_country, ident, name, type, latitude_deg, longitude_deg FROM airport WHERE ident = '{icao}'"
     global cursor
     cursor.execute(sql)
     return cursor.fetchone()
 
+def create_lootbox(airport):
+    pass
+
+# insert a new game into the database
+# create the lootboxes for the airports
 
 def create_game(name, location, money, range, airports):
     sql = f"INSERT INTO game (money,location,starting_airport,screen_name,player_range) VALUES ({money}, '{location[1]}','{location[1]}', '{name}', {range})"
@@ -36,16 +53,16 @@ def create_game(name, location, money, range, airports):
 
     return game_id, airports
 
-
+# get game details
 def get_game(game_id):
     sql = f"SELECT * FROM game WHERE id = {game_id}"
     global cursor
     cursor.execute(sql)
     return cursor.fetchone()
-
-def get_distance(game, airport):
-    cur_cords = get_airport_info(game[1])
-    new_cords = get_airport_info(airport)
+# get distance between 2 given airports
+def get_distance(airport1, airport2):
+    cur_cords = get_airport_info(airport1)
+    new_cords = get_airport_info(airport2)
     #lat, long for both
     coords1 = (cur_cords[4], cur_cords[5])
     coords2 = (new_cords[4], new_cords[5])
@@ -76,18 +93,15 @@ def accessible_airports(nykyinen, p_range):
             lista.append(f"{kentta[2]} (ICAO: {kentta[1]}) | Matka: {matka:.2f} km")
     return lista
 
-
-def create_lootbox():
-    pass
 def continue_game():
     pass
 
 original_airports = get_airports()
 
 #check if they have a previous game they want to continue and figure iut out
-#a = input("Haluatko jatkaa aiempaa gameä? (k/e)")
-a = False
-if a:
+#question = input("Haluatko jatkaa aiempaa gameä? (k/e)")
+question = False
+if question:
     #continue_game()
     quit()
 else:
@@ -101,7 +115,7 @@ while True:
     # game_over(game_id)
     # game_over handles checking if game is over and what to do in that case.
     #
-    print(f"***\nNykyinen lentokenttä: {current_airport[2]}\n")
+    print(f"***\nNykyinen lentokenttä: {current_airport[2]} ({current_airport[1]})\n")
     print(f"Rahaa jäljellä: {money} €\n")
     print(f"Jäljellä oleva lentomatka: {player_range} km\n")
     line = """Vaihtoehdot
@@ -145,8 +159,7 @@ while True:
                 print("Virheellinen syöte.")
             continue
     elif tehtava == 2:
-        # testataan että voinko tehdä tämän logiikan FLY funktiossa
-        usable_airports = accessible_airports(current_airport, player_range)
+        usable_airports = accessible_airports(current_airport[1], player_range)
         # tarkistetaan uudelleen että onko mahdollista lentää mihinkään
         # emme tarkista rahan määrää joten tarkistamme uudelleen jos jokin on muuttunut
         for destination in usable_airports:
@@ -157,7 +170,7 @@ while True:
         print("Lentokenttä vaihtoehdot:")
         koodi = input("Mihin lennetään (ICAO-koodi): ")
 
-        fly_result = fly(current_airport, koodi)
+        fly_result = fly(current_airport[1], koodi)
         if not fly_result:
             # tallennetaan nykyinen sijainti
             print("Lentokenttää ei löydy, tai emme voi lentää sinne.")
