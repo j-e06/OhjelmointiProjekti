@@ -1,4 +1,5 @@
 import random
+
 from geopy import distance
 
 from db import cursor
@@ -14,6 +15,7 @@ def get_airports():
         sql += " WHERE type in ('large_airport')"
     else:
         print("Virheellinen syöte.")
+        # restarting the function if the input was invalid
         get_airports()
 
     sql += " ORDER by RAND() LIMIT 30;"
@@ -28,11 +30,7 @@ def get_airport_info(icao):
     cursor.execute(sql)
     return cursor.fetchone()
 
-# create the lootboxes for the airports
-#
-def create_lootbox(airport):
-    #TODO!
-    pass
+
 
 # save the current values of the game into the database as a new game
 def create_game(name):
@@ -42,8 +40,9 @@ def create_game(name):
     #Decide default money and range amounts here!
     money = 1000
     player_range = 1500
-
+    diamond = 0
     original_airports = get_airports()
+    random.shuffle(original_airports)
 
     starting_airport = random.choice(original_airports)
 
@@ -53,15 +52,88 @@ def create_game(name):
     game_id = cursor.lastrowid
 
     #for loop handles creating the lootbox value for each airport that we are playing in.
-    for airport in original_airports:
-        #lootbox = create_lootbox(airport)
-        lootbox = 0 # temp
-        sql = f"INSERT INTO game_airports (game_id, airport_id, lootbox) VALUES ({game_id}, '{airport[1]}', {lootbox})"
-        cursor.execute(sql)
+
+    create_lootboxes(game_id,original_airports)
+
+
     #return game id, and modified airports
 
 
-    return game_id, money, player_range, starting_airport, original_airports
+    return game_id, money, diamond, player_range, starting_airport, original_airports
+
+# create the lootboxes for the airports
+#
+
+"""
+
+    sql = f"INSERT INTO game_airports (game_id, airport_id, lootbox) VALUES ({game_id}, '{modified_airport[1]}', {lootbox})"
+    cursor.execute(sql)"""
+
+def create_lootboxes(game_id, original_airports):
+    tyhjä = 15
+    smagardi = 2
+    ruby = 3
+    topaz = 4
+    timantti = 1
+    rosvo = 5
+    loot = {
+        1: 15,
+        2: 2,
+        3: 3,
+        4: 4,
+        5: 1,
+        6: 5
+    }
+
+    for airport in original_airports:
+        x = [1,2,3,4,5,6]
+        while True:
+            lootbox = random.choice(x)
+            if loot[lootbox] > 0:
+                sql = f"INSERT INTO game_airports (game_id, airport_id, lootbox) VALUES ({game_id}, '{airport[1]}', {lootbox})"
+                cursor.execute(sql)
+                loot[lootbox] -= 1
+                break
+            else:
+                x.remove(lootbox)
+    """
+    1: tyhjä
+
+    2: smaragdi
+    
+    3: ruby
+    
+    4: topaz
+    
+    5: timantti
+    
+    6: rosvo
+    
+    7: avattu
+    """
+
+    return []
+
+def handle_lootbox(game_id, airport_id):
+    sql = f"SELECT lootbox from game_airports WHERE airport_id = '{airport_id}' AND game_id = '{game_id}'"
+    cursor.execute(sql)
+    lootboxid = cursor.fetchone()[0]
+    if lootboxid == 1:
+        result = 0
+    elif lootboxid == 2:
+        result = 100
+    elif lootboxid == 3:
+        result = 200
+    elif lootboxid == 4:
+        result = 300
+    elif lootboxid == 5:
+        result = 1
+    elif lootboxid == 6:
+        result = -1
+
+    sql = f"UPDATE game_airports SET lootbox = 7 WHERE airport_id = '{airport_id}' AND game_id = '{game_id}'"
+    cursor.execute(sql)
+    return result
 
 # get game details
 def get_game(game_id):
@@ -109,6 +181,19 @@ def accessible_airports(airport, p_range):
             lista.append(f"{kentta[2]} (ICAO: {kentta[1]}) | Matka: {matka:.2f} km")
     return lista
 
+def game_over(game_id):
+    if current_airport == original_airport and diamond == 1:
+        return 0
+    else:
+        #continue
+        return 2
+    """
+    elif len(accessible_airports(current_airport, player_range+money*2)) == 0:
+        return 1
+    its borken
+    """
+
+
 # tries to continue a previous game
 def continue_game():
     #TODO!
@@ -124,11 +209,23 @@ if question:
 else:
     name = input("Pelaajan nimi: ")
 
-    game, money, player_range, current_airport, airports = create_game(name)
+    game, money, diamond, player_range, current_airport, airports = create_game(name)
+    original_airport = current_airport
 while True:
+    game_state = game_over(game)
+    if game_state == 0:
+        print("Voitit pelin!")
+        break
+    elif game_state == 1:
+        print("Hävisit pelin!")
+        break
+    elif game_state == 2:
+        pass
+    else:
+        print("miten vitussa pääsit tähän.")
     # game_over(game_id)
     # game_over handles checking if game is over and what to do in that case.
-    #
+    print(f"***\nAloituslentokenttä: {original_airport}!\n")
     print(f"***\nNykyinen lentokenttä: {current_airport[2]} ({current_airport[1]})\n")
     print(f"Rahaa jäljellä: {money} €\n")
     print(f"Jäljellä oleva lentomatka: {player_range} km\n")
@@ -142,6 +239,7 @@ while True:
     cursor.execute(lootbox_sql)
     # get lootbox
     lootbox_sisalto = cursor.fetchone()[0]
+    print(lootbox_sisalto)
     if lootbox_sisalto != 7:
         line +="\n    3. Avaa lootbox"
     print(line)
@@ -176,16 +274,21 @@ while True:
         #passing in current airports ICAO-code and the range of the player
         usable_airports = accessible_airports(current_airport[1], player_range)
 
+        print("Mahdolliset lentokohteet:")
 
         for destination in usable_airports:
             print(destination)
+
         if len(usable_airports) == 0:
             print("Ei ole mahdollista lentää mihinkään. Tankkaa lisää.")
             continue
-        print("Lentokenttä vaihtoehdot:")
-        koodi = input("Mihin lennetään (ICAO-koodi): ")
 
+        print("Lentokenttä vaihtoehdot:")
+        koodi = input("Mihin lennetään (ICAO-koodi) (0 päästää ulos): ")
+        if koodi == "0":
+            continue
         fly_result = fly(current_airport[1], koodi)
+
         if fly_result is None:
             print("Lentokenttää ei löydy.")
         elif fly_result is False:
@@ -193,13 +296,46 @@ while True:
         else:
             current_airport = fly_result
             print("Lento onnistui!")
+
     elif tehtava == 3:
         #TODO!
         # lootbox
-        pass
+        valinta = input("Haluatko avata lootboxin rahalla tai bensalla (M/B) (0 päästää ulos)").upper()
+        if valinta == "M":
+            if money < 100:
+                print("Ei ole tarpeeksi rahaa.")
+                continue
+            else:
+                money -= 50
+        elif valinta == "B":
+            if player_range < 125:
+                print("Ei ole tarpeeksi bensaa.")
+                continue
+            else:
+                player_range -= 300
+        elif valinta == "0":
+            continue
+        else:
+            print("Virheellinen vastaus!")
+        result = handle_lootbox(game, current_airport[1])
+        if result == 1:
+            print("Löysit timantin! Palaa aloituskentälle voittaaksesi pelin!")
+            diamond = 1
+        elif result == 0:
+            print("Löysit maitoa!")
+        elif result > 1:
+            money += result
+            print("Löysit jalokiven")
+        elif result < 0:
+            money = 0
+            print("Rosvo löyti sinut.")
+        update_game(game, current_airport[1], money, player_range)
     else:
         print("Virheellinen syöte.")
         continue
+
+    #update the game info
+
     game_info = get_game(game)
     money = game_info[1]
     current_airport = get_airport_info(game_info[2])
@@ -208,9 +344,11 @@ while True:
 
 """
 TODO!
-lootboxien generointi
-lootboxien avaaminen ja niiden sisältöön reagoiminen
-win/loss tarkistus
-pelin tallennus, jatko ja kirjautuminen
+loss tarkistus - pavel
+pelin tallennus, jatko ja kirjautuminen - pavel
+
+koodin paranteleminen, kommentointi ja siistiminen - me
+
+updatee useemmin koska kekw - me
 
 """
