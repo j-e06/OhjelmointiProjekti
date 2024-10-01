@@ -30,16 +30,14 @@ def get_airport_info(icao):
     cursor.execute(sql)
     return cursor.fetchone()
 
-
-
 # save the current values of the game into the database as a new game
 def create_game(name):
     global cursor
 
-
     #Decide default money and range amounts here!
     money = 1000
     player_range = 1500
+    #set diamond to 0 so we can easily see later if we've won or not
     diamond = 0
     original_airports = get_airports()
     random.shuffle(original_airports)
@@ -55,9 +53,7 @@ def create_game(name):
 
     create_lootboxes(game_id,original_airports)
 
-
     #return game id, and modified airports
-
 
     return game_id, money, diamond, player_range, starting_airport, original_airports
 
@@ -70,12 +66,6 @@ def create_game(name):
     cursor.execute(sql)"""
 
 def create_lootboxes(game_id, original_airports):
-    tyhjä = 15
-    smagardi = 2
-    ruby = 3
-    topaz = 4
-    timantti = 1
-    rosvo = 5
     loot = {
         1: 15,
         2: 2,
@@ -96,24 +86,6 @@ def create_lootboxes(game_id, original_airports):
                 break
             else:
                 x.remove(lootbox)
-    """
-    1: tyhjä
-
-    2: smaragdi
-    
-    3: ruby
-    
-    4: topaz
-    
-    5: timantti
-    
-    6: rosvo
-    
-    7: avattu
-    """
-
-    return []
-
 def handle_lootbox(game_id, airport_id):
     sql = f"SELECT lootbox from game_airports WHERE airport_id = '{airport_id}' AND game_id = '{game_id}'"
     cursor.execute(sql)
@@ -130,7 +102,8 @@ def handle_lootbox(game_id, airport_id):
         result = 1
     elif lootboxid == 6:
         result = -1
-
+    else:
+        result = None
     sql = f"UPDATE game_airports SET lootbox = 7 WHERE airport_id = '{airport_id}' AND game_id = '{game_id}'"
     cursor.execute(sql)
     return result
@@ -144,9 +117,11 @@ def get_game(game_id):
 
 # get distance between 2 given airports
 def get_distance(airport1, airport2):
+
     airport1 = get_airport_info(airport1)
     airport2 = get_airport_info(airport2)
     #lat, long for both
+
     airport1_cords = (airport1[4], airport1[5])
     airport2_cords = (airport2[4], airport2[5])
     return distance.distance(airport1_cords, airport2_cords).km
@@ -225,7 +200,7 @@ while True:
         print("miten vitussa pääsit tähän.")
     # game_over(game_id)
     # game_over handles checking if game is over and what to do in that case.
-    print(f"***\nAloituslentokenttä: {original_airport}!\n")
+    print(f"***\nAloituslentokenttä: {original_airport[2]} ({original_airport[1]})")
     print(f"***\nNykyinen lentokenttä: {current_airport[2]} ({current_airport[1]})\n")
     print(f"Rahaa jäljellä: {money} €\n")
     print(f"Jäljellä oleva lentomatka: {player_range} km\n")
@@ -250,10 +225,12 @@ while True:
         print("Syötä numero.")
         continue
     if tehtava == 0:
+        #save game and end in case they want to continue in the future.
         update_game(game, current_airport[1], money, player_range)
         print("Nähdään!")
         quit()
     elif tehtava == 1:
+        # ostaa lisää bensaa rahalla.
         maara = int(input("Paljonko rahaa haluat käyttää? (1 euro = 2 kilometriä.) "))
         if money >= maara > 0:
             player_range += maara * 2
@@ -271,17 +248,19 @@ while True:
                 print("Virheellinen syöte.")
             continue
     elif tehtava == 2:
+        #checking if we can fly
         #passing in current airports ICAO-code and the range of the player
         usable_airports = accessible_airports(current_airport[1], player_range)
+
+
+        if len(usable_airports) == 0:
+            print("Ei ole mahdollista lentää mihinkään. Tankkaa lisää.")
+            continue
 
         print("Mahdolliset lentokohteet:")
 
         for destination in usable_airports:
             print(destination)
-
-        if len(usable_airports) == 0:
-            print("Ei ole mahdollista lentää mihinkään. Tankkaa lisää.")
-            continue
 
         print("Lentokenttä vaihtoehdot:")
         koodi = input("Mihin lennetään (ICAO-koodi) (0 päästää ulos): ")
@@ -295,10 +274,10 @@ while True:
             print("Emme voi lentää sinne.")
         else:
             current_airport = fly_result
+            update_game(game, current_airport, money, player_range)
             print("Lento onnistui!")
 
     elif tehtava == 3:
-        #TODO!
         # lootbox
         valinta = input("Haluatko avata lootboxin rahalla tai bensalla (M/B) (0 päästää ulos)").upper()
         if valinta == "M":
@@ -351,4 +330,5 @@ koodin paranteleminen, kommentointi ja siistiminen - me
 
 updatee useemmin koska kekw - me
 
+muokkaa update_game toimivaks
 """
