@@ -4,28 +4,23 @@ from geopy import distance
 from db import cursor
 # get all airports from the database that we're going to use for the game
 def get_airports():
-    ch = input("Haluatko pelata Euroopassa vai maailmanlaajuisesti? (eurooppa/maailma)")
+    ch = input("Haluatko pelata Euroopassa vai maailmanlaajuisesti? (eu/mm): ").lower().strip(" ")
+
     sql = "SELECT iso_country, ident, name, type, latitude_deg, longitude_deg FROM airport"
-    if ch == "eurooppa":
+
+    if ch == "eu":
         sql += " WHERE continent = 'EU' AND type in ('large_airport')"
-    elif ch == "maailma":
+    elif ch == "mm":
         sql += " WHERE type in ('large_airport')"
     else:
         print("Virheellinen syöte.")
         get_airports()
 
     sql += " ORDER by RAND() LIMIT 30;"
-    #           sql = """SELECT iso_country, ident, name, type, latitude_deg, longitude_deg
-    #       FROM airport
-    #       WHERE continent = 'EU'
-    #       AND type in ('large_airport')
-    #       ORDER by RAND()
-    #       LIMIT 30;"""
-    print(sql)
     global cursor
     cursor.execute(sql)
-    result = cursor.fetchall()
-    return result
+    return cursor.fetchall()
+
 # get the information of an airport based on its ICAO code
 def get_airport_info(icao):
     sql = f"SELECT iso_country, ident, name, type, latitude_deg, longitude_deg FROM airport WHERE ident = '{icao}'"
@@ -33,25 +28,40 @@ def get_airport_info(icao):
     cursor.execute(sql)
     return cursor.fetchone()
 
+# create the lootboxes for the airports
+#
 def create_lootbox(airport):
+    #TODO!
     pass
 
-# insert a new game into the database
-# create the lootboxes for the airports
-
-def create_game(name, location, money, range, airports):
-    sql = f"INSERT INTO game (money,location,starting_airport,screen_name,player_range) VALUES ({money}, '{location[1]}','{location[1]}', '{name}', {range})"
+# save the current values of the game into the database as a new game
+def create_game(name):
     global cursor
+
+
+    #Decide default money and range amounts here!
+    money = 1000
+    player_range = 1500
+
+    original_airports = get_airports()
+
+    starting_airport = random.choice(original_airports)
+
+    #insert basic details into the game table
+    sql = f"INSERT INTO game (money,location,starting_airport,screen_name,player_range) VALUES ({money}, '{starting_airport[1]}','{starting_airport[1]}', '{name}', {player_range})"
     cursor.execute(sql)
     game_id = cursor.lastrowid
-    for airport in airports:
-        # numero value of what the fuck lootbox sisältää
+
+    #for loop handles creating the lootbox value for each airport that we are playing in.
+    for airport in original_airports:
         #lootbox = create_lootbox(airport)
-        lootbox = 0
+        lootbox = 0 # temp
         sql = f"INSERT INTO game_airports (game_id, airport_id, lootbox) VALUES ({game_id}, '{airport[1]}', {lootbox})"
         cursor.execute(sql)
+    #return game id, and modified airports
 
-    return game_id, airports
+
+    return game_id, money, player_range, starting_airport, original_airports
 
 # get game details
 def get_game(game_id):
@@ -59,15 +69,17 @@ def get_game(game_id):
     global cursor
     cursor.execute(sql)
     return cursor.fetchone()
+
 # get distance between 2 given airports
 def get_distance(airport1, airport2):
-    cur_cords = get_airport_info(airport1)
-    new_cords = get_airport_info(airport2)
+    airport1 = get_airport_info(airport1)
+    airport2 = get_airport_info(airport2)
     #lat, long for both
-    coords1 = (cur_cords[4], cur_cords[5])
-    coords2 = (new_cords[4], new_cords[5])
-    return distance.distance(coords1, coords2).km
+    airport1_cords = (airport1[4], airport1[5])
+    airport2_cords = (airport2[4], airport2[5])
+    return distance.distance(airport1_cords, airport2_cords).km
 
+# self-explanatory
 def update_game(game_id, location, money, range):
     sql = f"UPDATE game SET money = {money}, location = '{location}', player_range = {range} WHERE id = {game_id}"
     global cursor
@@ -76,41 +88,43 @@ def update_game(game_id, location, money, range):
 
 def fly(nykyinen, icao_code):
     global cursor
-
+    #check if real airport and that it's in the current game
     if icao_code not in [airport[1] for airport in airports]:
-        return False
+        return None
 
     dist = get_distance(nykyinen, icao_code)
+    # check if we can fly there
     if player_range>dist>1:
         update_game(game, icao_code, money, player_range - dist)
         return get_airport_info(icao_code)
+    else:
+        return False
 
-def accessible_airports(nykyinen, p_range):
+# get all airports that are within the range of the current airport
+def accessible_airports(airport, p_range):
     lista = []
     for kentta in airports:
-        matka = get_distance(nykyinen, kentta[1])
+        matka = get_distance(airport, kentta[1])
         if p_range >= matka > 1:
             lista.append(f"{kentta[2]} (ICAO: {kentta[1]}) | Matka: {matka:.2f} km")
     return lista
 
+# tries to continue a previous game
 def continue_game():
+    #TODO!
     pass
-
-original_airports = get_airports()
 
 #check if they have a previous game they want to continue and figure iut out
 #question = input("Haluatko jatkaa aiempaa gameä? (k/e)")
 question = False
 if question:
     #continue_game()
+    #TODO!
     quit()
 else:
     name = input("Pelaajan nimi: ")
-    current_airport = random.choice(original_airports)
-    money = 1000
-    player_range = 1500
 
-    game, airports = create_game(name, current_airport, money, player_range, original_airports)
+    game, money, player_range, current_airport, airports = create_game(name)
 while True:
     # game_over(game_id)
     # game_over handles checking if game is over and what to do in that case.
@@ -119,7 +133,7 @@ while True:
     print(f"Rahaa jäljellä: {money} €\n")
     print(f"Jäljellä oleva lentomatka: {player_range} km\n")
     line = """Vaihtoehdot
-    (0 lopettaa pelin)
+    0. Lopeta peli
     1. Tankkaa
     2. Lähde matkalle"""
 
@@ -133,7 +147,7 @@ while True:
     print(line)
 
     try:
-        tehtava = int(input("\nMitä tehdään: "))
+        tehtava = int(input("\nMitä tehdään: \n"))
     except ValueError:
         print("Syötä numero.")
         continue
@@ -159,9 +173,10 @@ while True:
                 print("Virheellinen syöte.")
             continue
     elif tehtava == 2:
+        #passing in current airports ICAO-code and the range of the player
         usable_airports = accessible_airports(current_airport[1], player_range)
-        # tarkistetaan uudelleen että onko mahdollista lentää mihinkään
-        # emme tarkista rahan määrää joten tarkistamme uudelleen jos jokin on muuttunut
+
+
         for destination in usable_airports:
             print(destination)
         if len(usable_airports) == 0:
@@ -171,12 +186,15 @@ while True:
         koodi = input("Mihin lennetään (ICAO-koodi): ")
 
         fly_result = fly(current_airport[1], koodi)
-        if not fly_result:
-            # tallennetaan nykyinen sijainti
-            print("Lentokenttää ei löydy, tai emme voi lentää sinne.")
+        if fly_result is None:
+            print("Lentokenttää ei löydy.")
+        elif fly_result is False:
+            print("Emme voi lentää sinne.")
         else:
             current_airport = fly_result
+            print("Lento onnistui!")
     elif tehtava == 3:
+        #TODO!
         # lootbox
         pass
     else:
@@ -189,7 +207,7 @@ while True:
 
 
 """
-PAVEL TO DO:
+TODO!
 lootboxien generointi
 lootboxien avaaminen ja niiden sisältöön reagoiminen
 win/loss tarkistus
