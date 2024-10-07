@@ -4,7 +4,7 @@ conn = mariadb.connect(
     port=3306,
     database='project',
     user='root',
-    password='potatoman',
+    password='root',
     autocommit=True
 )
 cursor = conn.cursor()
